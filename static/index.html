@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0609">
+<title>Пермский стендап-клуб — афиша</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --bg:#0a0609;
+    --bg2:#150a10;
+    --card:#1b0d14;
+    --line:rgba(255,255,255,.08);
+    --txt:#f4ece6;
+    --dim:#a08e90;
+    --red:#e0202a;
+    --red-soft:#ff5a4a;
+    --gold:#ffcf7a;
+    --radius:16px;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{
+    margin:0; padding:0; min-height:100%;
+    background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    overscroll-behavior-y:contain;
+  }
+  body{
+    background:
+      radial-gradient(120% 60% at 50% 0%, #340d15 0%, #150a10 45%, #0a0609 100%);
+    padding-bottom:calc(28px + env(safe-area-inset-bottom));
+  }
+
+  /* ---------- шапка ---------- */
+  .head{
+    position:sticky; top:0; z-index:20;
+    padding:18px 18px 12px;
+    background:linear-gradient(180deg, rgba(10,6,9,.97) 55%, rgba(10,6,9,0));
+    backdrop-filter:blur(10px);
+  }
+  .head h1{
+    margin:0; font-size:19px; font-weight:900;
+    letter-spacing:.09em; text-transform:uppercase;
+    background:linear-gradient(180deg,#ffe9d6,#ff5a4a);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .head .sub{
+    margin-top:4px; font-size:12.5px; color:var(--dim); letter-spacing:.02em;
+  }
+  .head .sub b{ color:#d9c3bd; font-weight:600; }
+
+  /* ---------- фильтры ---------- */
+  .tabs{
+    display:flex; gap:8px; overflow-x:auto; padding:0 18px 12px;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar{ display:none; }
+  .tab{
+    flex:0 0 auto; padding:8px 14px; border-radius:999px;
+    border:1px solid var(--line); background:rgba(255,255,255,.04);
+    color:#cdb9b3; font-size:13px; font-weight:700; letter-spacing:.02em;
+    cursor:pointer; transition:.15s;
+  }
+  .tab.on{ background:linear-gradient(180deg,#a3171f,#6d0d13); border-color:rgba(255,120,100,.5); color:#fff; }
+
+  /* ---------- список ---------- */
+  .list{ padding:0 14px; display:flex; flex-direction:column; gap:10px; }
+  .group-label{
+    font-size:11.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:#8d7378; font-weight:800; padding:14px 4px 2px;
+  }
+  .card{
+    display:flex; gap:12px; padding:10px;
+    background:linear-gradient(180deg,#1e0f16,#170b11);
+    border:1px solid var(--line); border-radius:var(--radius);
+    cursor:pointer; transition:transform .12s, border-color .15s;
+    align-items:center;
+  }
+  .card:active{ transform:scale(.985); border-color:rgba(255,120,100,.35); }
+  .card .poster{
+    width:88px; height:110px; flex:0 0 88px; border-radius:11px;
+    object-fit:cover; background:#2a1219; display:block;
+  }
+  .card .poster-ph{
+    width:88px; height:110px; flex:0 0 88px; border-radius:11px;
+    background:linear-gradient(135deg,#3a121b,#200d13);
+    display:flex; align-items:center; justify-content:center;
+    color:#6d4a52; font-size:11px; font-weight:700; letter-spacing:.1em;
+  }
+  .card .body{ min-width:0; flex:1; padding-right:4px; }
+  .card .when{
+    font-size:12px; font-weight:800; letter-spacing:.04em;
+    color:var(--red-soft); text-transform:uppercase;
+  }
+  .card .name{
+    margin:5px 0 0; font-size:15.5px; font-weight:800; line-height:1.25;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .card .meta{
+    margin-top:5px; font-size:12px; color:var(--dim);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .card .price{
+    margin-top:7px; font-size:14px; font-weight:900; color:var(--gold);
+  }
+  .card .price small{ font-weight:700; color:#a8917f; font-size:11.5px; }
+
+  /* ---------- скелет / состояния ---------- */
+  .skel{ padding:0 14px; display:flex; flex-direction:column; gap:10px; }
+  .skel-row{
+    height:130px; border-radius:var(--radius);
+    background:linear-gradient(90deg,#1a0d13 25%,#241118 50%,#1a0d13 75%);
+    background-size:200% 100%; animation:sh 1.3s infinite;
+  }
+  @keyframes sh{ 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .state{
+    margin:40px 24px; text-align:center; color:var(--dim); font-size:14px; line-height:1.6;
+  }
+  .state b{ display:block; color:#e8d6cf; font-size:16px; margin-bottom:8px; }
+  .retry{
+    margin-top:16px; padding:11px 22px; border-radius:12px; border:1px solid rgba(255,120,100,.4);
+    background:linear-gradient(180deg,#a3171f,#6d0d13); color:#fff;
+    font-size:14px; font-weight:800; cursor:pointer;
+  }
+
+  /* ---------- карточка мероприятия ---------- */
+  .sheet-wrap{
+    position:fixed; inset:0; z-index:40; display:none;
+  }
+  .sheet-wrap.open{ display:block; }
+  .sheet-bg{
+    position:absolute; inset:0; background:rgba(0,0,0,.6);
+    opacity:0; transition:opacity .22s;
+  }
+  .sheet-wrap.open .sheet-bg{ opacity:1; }
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0;
+    max-height:92vh; display:flex; flex-direction:column;
+    background:var(--bg2); border-radius:20px 20px 0 0;
+    transform:translateY(100%); transition:transform .26s cubic-bezier(.32,.72,0,1);
+    box-shadow:0 -18px 50px rgba(0,0,0,.7);
+  }
+  .sheet-wrap.open .sheet{ transform:translateY(0); }
+  .sheet .grip{
+    width:38px; height:4px; border-radius:2px; background:#4a2b34;
+    margin:10px auto 0; flex:0 0 auto;
+  }
+  .sheet .close{
+    position:absolute; top:10px; right:10px; z-index:2;
+    width:34px; height:34px; border-radius:50%; border:0; cursor:pointer;
+    background:rgba(30,16,22,.85); color:#e8d6cf; font-size:22px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    backdrop-filter:blur(6px);
+  }
+  .sheet .close:active{ background:rgba(60,26,36,.95); }
+  .sheet .scroll{
+    overflow-y:auto; padding:8px 18px 18px; flex:1 1 auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .sheet .hero{
+    width:100%; border-radius:14px; display:block; margin-bottom:14px;
+    background:#2a1219; object-fit:cover; max-height:42vh;
+  }
+  .sheet h2{
+    margin:0 0 6px; font-size:21px; font-weight:900; line-height:1.2;
+  }
+  .sheet .when{
+    font-size:13px; font-weight:800; color:var(--red-soft);
+    letter-spacing:.04em; text-transform:uppercase; margin-bottom:12px;
+  }
+  .rows{ display:flex; flex-direction:column; gap:9px; margin:14px 0; }
+  .row{ display:flex; gap:10px; font-size:13.5px; line-height:1.45; }
+  .row .k{ flex:0 0 78px; color:#8d7378; font-weight:700; }
+  .row .v{ color:#e5d5cf; flex:1; }
+  .desc{
+    font-size:13.5px; line-height:1.6; color:#c4b2ad; white-space:pre-line;
+    border-top:1px solid var(--line); padding-top:14px; margin-top:6px;
+  }
+  .buy{
+    flex:0 0 auto; padding:12px 18px calc(12px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--line); background:rgba(10,6,9,.96);
+    display:flex; gap:12px; align-items:center;
+  }
+  .buy .sum{ flex:1; min-width:0; }
+  .buy .sum .lbl{ font-size:11px; color:#8d7378; letter-spacing:.1em; font-weight:700; }
+  .buy .sum .val{ font-size:19px; font-weight:900; color:var(--gold); }
+  .buy button{
+    padding:14px 22px; border:0; border-radius:13px; cursor:pointer;
+    background:linear-gradient(180deg,#e8353c,#a8161d); color:#fff;
+    font-size:15px; font-weight:900; letter-spacing:.02em;
+    box-shadow:0 8px 22px rgba(200,20,30,.35);
+  }
+  .buy button:active{ transform:translateY(1px); }
+  .note{
+    text-align:center; font-size:11.5px; color:#7c686c; padding:10px 18px 0;
+  }
+
+  .bnav{
+    position:fixed; left:0; right:0; bottom:0; z-index:30;
+    display:flex; background:rgba(10,6,9,.97); border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  .bnav button{
+    flex:1; padding:12px 6px 14px; border:0; background:none; cursor:pointer;
+    color:#7c686c; font-size:13px; font-weight:800; letter-spacing:.03em;
+  }
+  .bnav button.on{ color:#ffe9d6; }
+  .bnav button.on::before{
+    content:''; display:block; width:28px; height:3px; border-radius:2px;
+    background:var(--red-soft); margin:0 auto 7px;
+  }
+  body{ padding-bottom:calc(84px + env(safe-area-inset-bottom)) !important; }
+  body.view-mine .tabs, body.view-mine #list, body.view-mine #state, body.view-mine #skel{ display:none !important; }
+  #mine{ display:none; padding:4px 14px 0; }
+  body.view-mine #mine{ display:block; }
+  .mine-h{ font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:#8d7378; font-weight:800; padding:14px 4px 6px; }
+  .fm{
+    background:linear-gradient(180deg,#1e0f16,#170b11); border:1px solid var(--line);
+    border-radius:var(--radius); padding:16px;
+  }
+  .fm p{ margin:0 0 12px; font-size:13.5px; line-height:1.5; color:#bfa9a3; }
+  .fm label{ display:block; font-size:11.5px; color:#8d7378; font-weight:800; letter-spacing:.06em; margin:10px 0 5px; }
+  .fm input{
+    width:100%; padding:13px 14px; border-radius:12px; border:1px solid rgba(255,255,255,.14);
+    background:rgba(10,6,9,.8); color:var(--txt); font-size:16px; outline:none;
+  }
+  .fm input:focus{ border-color:rgba(255,120,100,.6); }
+  .fm .go{
+    width:100%; margin-top:14px; padding:14px; border:0; border-radius:13px; cursor:pointer;
+    background:linear-gradient(180deg,#e8353c,#a8161d); color:#fff; font-size:15px; font-weight:900;
+  }
+  .fm .go:disabled{ opacity:.5; }
+  .fm .err{ margin-top:10px; font-size:13px; color:#ff8a7a; min-height:16px; }
+  .fm .hint{ margin-top:12px; font-size:11.5px; color:#7c686c; line-height:1.5; }
+  .tk{
+    background:linear-gradient(180deg,#1e0f16,#170b11); border:1px solid var(--line);
+    border-radius:var(--radius); padding:14px; margin-bottom:10px;
+  }
+  .tk .w{ font-size:12px; font-weight:800; color:var(--red-soft); text-transform:uppercase; letter-spacing:.04em; }
+  .tk h3{ margin:5px 0 4px; font-size:16px; font-weight:800; line-height:1.25; }
+  .tk .m{ font-size:12px; color:var(--dim); }
+  .tk .r{ display:flex; justify-content:space-between; margin-top:10px; font-size:13.5px; }
+  .tk .r b{ color:var(--gold); font-weight:900; }
+  .tk .bc{
+    margin-top:12px; padding:10px; border-radius:10px; text-align:center;
+    background:#fff; color:#111; font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:15px; letter-spacing:.12em; font-weight:700;
+  }
+  .tk .pdf{
+    width:100%; margin-top:10px; padding:11px; border-radius:11px; cursor:pointer;
+    border:1px solid rgba(255,120,100,.4); background:rgba(255,255,255,.03);
+    color:#ffe9d6; font-size:13.5px; font-weight:800;
+  }
+  .mine-empty{ text-align:center; color:var(--dim); font-size:14px; line-height:1.6; padding:26px 10px; }
+  .mine-empty b{ display:block; color:#e8d6cf; font-size:16px; margin-bottom:6px; }
+  .link-btn{
+    margin-top:14px; background:none; border:0; color:#cdb9b3; font-size:13px;
+    font-weight:700; text-decoration:underline; cursor:pointer; padding:6px;
+  }
+</style>
+</head>
+<body>
+
+<header class="head">
+  <h1>Пермский стендап-клуб</h1>
+  <div class="sub"><b>Куйбышева, 59</b> · афиша и билеты</div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab on" data-f="all">Все</button>
+  <button class="tab" data-f="today">Сегодня</button>
+  <button class="tab" data-f="week">7 дней</button>
+</nav>
+
+<div class="skel" id="skel">
+  <div class="skel-row"></div>
+  <div class="skel-row"></div>
+  <div class="skel-row"></div>
+</div>
+
+<main class="list" id="list" hidden></main>
+<nav class="bnav" id="bnav">
+  <button class="bnav-btn on" data-v="afisha">Афиша</button>
+  <button class="bnav-btn" data-v="mine">Мои билеты</button>
+</nav>
+
+<section id="mine" hidden><div id="mineBody"></div></section>
+
+
+<div class="state" id="state" hidden></div>
+
+<div class="sheet-wrap" id="sheetWrap">
+  <div class="sheet-bg" id="sheetBg"></div>
+  <section class="sheet" id="sheet">
+    <div class="grip"></div>
+    <button class="close" id="sheetClose" aria-label="Закрыть">&times;</button>
+    <div class="scroll" id="sheetBody"></div>
+    <div class="buy">
+      <div class="sum">
+        <div class="lbl">БИЛЕТЫ</div>
+        <div class="val" id="sheetPrice">—</div>
+      </div>
+      <button id="sheetBuy">Купить</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var TG = window.Telegram && window.Telegram.WebApp;
+  var inTelegram = !!(TG && TG.initData !== undefined && TG.platform !== 'unknown');
+
+  if (TG) {
+    try {
+      TG.ready();
+      TG.expand();
+      TG.setHeaderColor('#0a0609');
+      TG.setBackgroundColor('#0a0609');
+      if (TG.isVersionAtLeast && TG.isVersionAtLeast('7.1')) TG.disableVerticalSwipes();
+    } catch (e) {}
+  }
+
+  var state = { items: [], filter: 'all', current: null };
+  var elList = document.getElementById('list');
+  var elSkel = document.getElementById('skel');
+  var elState = document.getElementById('state');
+  var elTabs = document.getElementById('tabs');
+  var wrap = document.getElementById('sheetWrap');
+  var sheetBody = document.getElementById('sheetBody');
+  var sheetPrice = document.getElementById('sheetPrice');
+  var sheetBuy = document.getElementById('sheetBuy');
+
+  function haptic(type) {
+    if (!TG || !TG.HapticFeedback) return;
+    try {
+      if (type === 'tap') TG.HapticFeedback.impactOccurred('light');
+      else TG.HapticFeedback.notificationOccurred(type);
+    } catch (e) {}
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function money(v) {
+    if (v == null) return '—';
+    return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' \u20BD';
+  }
+
+  function priceLabel(it) {
+    if (it.price_from == null) return 'Уточняйте';
+    if (it.price_to && it.price_to !== it.price_from) {
+      return 'от ' + it.price_from + ' до ' + it.price_to + ' \u20BD';
+    }
+    return 'от ' + it.price_from + ' \u20BD';
+  }
+
+  /* ---------------- загрузка ---------------- */
+  function load(force) {
+    elSkel.hidden = false;
+    elList.hidden = true;
+    elState.hidden = true;
+
+    fetch('/api/events?limit=40' + (force ? '&refresh=1' : ''), { cache: 'no-store' })
+      .then(function (r) {
+        return r.json().then(function (j) { return { ok: r.ok, j: j }; });
+      })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.j && (res.j.message || res.j.error) || 'fail');
+        state.items = res.j.items || [];
+        elSkel.hidden = true;
+        if (!state.items.length) {
+          showState('Пока нет мероприятий', 'Как только появятся новые даты, они окажутся здесь.', false);
+          return;
+        }
+        render();
+      })
+      .catch(function (e) {
+        elSkel.hidden = true;
+        showState('Не удалось загрузить афишу', esc(e.message || 'Проверьте соединение.'), true);
+      });
+  }
+
+  function showState(title, text, retry) {
+    elState.hidden = false;
+    elList.hidden = true;
+    elState.innerHTML = '<b>' + title + '</b>' + text +
+      (retry ? '<br><button class="retry" id="retryBtn">Обновить</button>' : '');
+    var b = document.getElementById('retryBtn');
+    if (b) b.addEventListener('click', function () { load(true); });
+  }
+
+  /* ---------------- фильтр ---------------- */
+  function filtered() {
+    var now = Date.now() / 1000;
+    if (state.filter === 'today') {
+      var d = new Date();
+      var endOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59).getTime() / 1000;
+      var startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 1000;
+      return state.items.filter(function (i) { return i.ts >= startOfDay && i.ts <= endOfDay; });
+    }
+    if (state.filter === 'week') {
+      return state.items.filter(function (i) { return i.ts <= now + 7 * 86400; });
+    }
+    return state.items;
+  }
+
+  /* ---------------- рендер списка ---------------- */
+  function render() {
+    var items = filtered();
+    elList.hidden = false;
+
+    if (!items.length) {
+      elList.innerHTML = '<div class="state"><b>Ничего не нашлось</b>Попробуйте другой фильтр.</div>';
+      return;
+    }
+
+    var html = '', lastGroup = null;
+    items.forEach(function (it) {
+      var group = it.date_human.split(' · ')[0];
+      if (group !== lastGroup) {
+        html += '<div class="group-label">' + esc(group) + '</div>';
+        lastGroup = group;
+      }
+      var poster = it.poster_thumb
+        ? '<img class="poster" src="' + esc(it.poster_thumb) + '" width="88" height="110" alt="" loading="lazy" decoding="async">'
+        : '<div class="poster-ph">АФИША</div>';
+      html +=
+        '<article class="card" data-id="' + it.id + '">' +
+          poster +
+          '<div class="body">' +
+            '<div class="when">' + esc(it.date_human) + '</div>' +
+            '<h3 class="name">' + esc(it.name) + '</h3>' +
+            '<div class="meta">' + esc(it.place) + (it.age ? ' · ' + esc(it.age) : '') + '</div>' +
+            '<div class="price">' + esc(priceLabel(it)) + '</div>' +
+          '</div>' +
+        '</article>';
+    });
+    elList.innerHTML = html;
+
+    Array.prototype.forEach.call(elList.querySelectorAll('.card'), function (c) {
+      c.addEventListener('click', function () {
+        var it = state.items.filter(function (x) { return String(x.id) === c.dataset.id; })[0];
+        if (it) openSheet(it);
+      });
+    });
+  }
+
+  /* ---------------- карточка ---------------- */
+  function openSheet(it) {
+    state.current = it;
+    haptic('tap');
+
+    var rows =
+      '<div class="row"><div class="k">Когда</div><div class="v">' + esc(it.date_human) + '</div></div>' +
+      '<div class="row"><div class="k">Где</div><div class="v">' + esc(it.place) +
+        (it.address ? '<br>' + esc(it.address) : '') + '</div></div>';
+    if (it.age) {
+      rows += '<div class="row"><div class="k">Возраст</div><div class="v">' + esc(it.age) + '</div></div>';
+    }
+    if (it.shows_total > 1) {
+      rows += '<div class="row"><div class="k">Сеансы</div><div class="v">ещё ' +
+        (it.shows_total - 1) + ' на этой странице</div></div>';
+    }
+
+    sheetBody.innerHTML =
+      (it.poster_big ? '<img class="hero" src="' + esc(it.poster_big) + '" alt="">' : '') +
+      '<h2>' + esc(it.name) + '</h2>' +
+      '<div class="when">' + esc(it.date_human) + '</div>' +
+      '<div class="rows">' + rows + '</div>' +
+      (it.description ? '<div class="desc">' + esc(it.description) + '</div>' : '');
+
+    sheetPrice.textContent = priceLabel(it);
+    sheetBody.scrollTop = 0;
+    wrap.classList.add('open');
+
+    if (TG && TG.MainButton) {
+      try {
+        TG.MainButton.setText('Купить билет');
+        TG.MainButton.show();
+        TG.MainButton.onClick(buy);
+      } catch (e) {}
+    }
+    if (TG && TG.BackButton) {
+      try { TG.BackButton.show(); TG.BackButton.onClick(closeSheet); } catch (e) {}
+    }
+  }
+
+  function closeSheet() {
+    wrap.classList.remove('open');
+    state.current = null;
+    if (TG && TG.MainButton) { try { TG.MainButton.hide(); } catch (e) {} }
+    if (TG && TG.BackButton) { try { TG.BackButton.hide(); } catch (e) {} }
+  }
+
+  function buy() {
+    var it = state.current;
+    if (!it) return;
+    haptic('success');
+    // в Telegram — встроенный браузер, вне его — новая вкладка
+    if (TG && TG.openLink) {
+      try { TG.openLink(it.url, { try_instant_view: false }); return; } catch (e) {}
+    }
+    window.open(it.url, '_blank', 'noopener');
+  }
+
+  /* ---------------- события ---------- */
+  sheetBuy.addEventListener('click', buy);
+  document.getElementById('sheetBg').addEventListener('click', closeSheet);
+  document.getElementById('sheetClose').addEventListener('click', closeSheet);
+
+  elTabs.addEventListener('click', function (e) {
+    var t = e.target.closest('.tab');
+    if (!t) return;
+    Array.prototype.forEach.call(elTabs.querySelectorAll('.tab'), function (x) {
+      x.classList.toggle('on', x === t);
+    });
+    state.filter = t.dataset.f;
+    haptic('tap');
+    render();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeSheet();
+  });
+
+
+  /* ---------------- Мои билеты ---------------- */
+  var mineBody = document.getElementById('mineBody');
+  var bnav = document.getElementById('bnav');
+
+  function initData() {
+    return (TG && TG.initData) ? TG.initData : '';
+  }
+  function authHeaders(extra) {
+    var h = extra || {};
+    if (initData()) h['X-Telegram-Init-Data'] = initData();
+    return h;
+  }
+  function setView(v) {
+    document.body.classList.toggle('view-mine', v === 'mine');
+    Array.prototype.forEach.call(bnav.querySelectorAll('.bnav-btn'), function (b) {
+      b.classList.toggle('on', b.dataset.v === v);
+    });
+    document.getElementById('mine').hidden = v !== 'mine';
+    haptic('tap');
+    if (v === 'mine') loadMine();
+  }
+  function safePdf(url) {
+    try {
+      var u = new URL(url);
+      return u.protocol === 'https:' && /(^|\.)qtickets\.(ru|events)$/.test(u.hostname) ? u.href : '';
+    } catch (e) { return ''; }
+  }
+  function openPdf(url) {
+    if (TG && TG.openLink) { try { TG.openLink(url); return; } catch (e) {} }
+    window.open(url, '_blank', 'noopener');
+  }
+  function ticketCards(list) {
+    return list.map(function (t) {
+      var pdf = safePdf(t.pdf_url);
+      return '<article class="tk">' +
+        '<div class="w">' + esc(t.date_human) + '</div>' +
+        '<h3>' + esc(t.event) + '</h3>' +
+        '<div class="m">' + esc(t.place) + (t.address ? ' · ' + esc(t.address) : '') + '</div>' +
+        '<div class="r"><span>' + esc(t.seat) + '</span><b>' + (t.price != null ? esc(t.price) + ' \u20BD' : '') + '</b></div>' +
+        (t.barcode ? '<div class="bc">' + esc(t.barcode) + '</div>' : '') +
+        (pdf ? '<button class="pdf" data-pdf="' + esc(pdf) + '">Открыть билет (PDF)</button>' : '') +
+        '</article>';
+    }).join('');
+  }
+  function wirePdf() {
+    Array.prototype.forEach.call(mineBody.querySelectorAll('.pdf'), function (b) {
+      b.addEventListener('click', function () { openPdf(b.dataset.pdf); });
+    });
+  }
+  function renderTickets(list, saved) {
+    var note = saved ? '' : '<div class="mine-empty" style="padding:8px 0 0">Билеты показаны только сейчас. Откройте приложение в Telegram, чтобы они сохранились.</div>';
+    mineBody.innerHTML = '<div class="mine-h">Мои билеты</div>' + ticketCards(list) + note +
+      '<button class="link-btn" id="addOther">Добавить другой заказ</button>';
+    wirePdf();
+    document.getElementById('addOther').addEventListener('click', function () { renderForm(''); });
+  }
+  function renderEmptyBound() {
+    mineBody.innerHTML = '<div class="mine-empty"><b>Предстоящих билетов нет</b>Как только появятся новые — они будут здесь.</div>' +
+      '<button class="link-btn" id="addOther">Добавить другой заказ</button>';
+    document.getElementById('addOther').addEventListener('click', function () { renderForm(''); });
+  }
+  function renderForm(msg) {
+    mineBody.innerHTML =
+      '<div class="mine-h">Мои билеты</div>' +
+      '<form class="fm" id="lookup">' +
+        '<p>Введите email и телефон, которые указывали при покупке. Так мы найдём ваши заказы.</p>' +
+        '<label for="lEmail">EMAIL</label>' +
+        '<input id="lEmail" type="email" autocomplete="email" inputmode="email" required>' +
+        '<label for="lPhone">ТЕЛЕФОН</label>' +
+        '<input id="lPhone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="+7 900 000-00-00">' +
+        '<button class="go" type="submit" id="lGo">Найти билеты</button>' +
+        '<div class="err" id="lErr">' + esc(msg) + '</div>' +
+        '<div class="hint">Данные нужны только для поиска заказов. Пароля нет, код в SMS или на почту не отправляем.</div>' +
+      '</form>';
+    document.getElementById('lookup').addEventListener('submit', submitLookup);
+  }
+  function submitLookup(e) {
+    e.preventDefault();
+    var btn = document.getElementById('lGo');
+    var err = document.getElementById('lErr');
+    btn.disabled = true; err.textContent = 'Ищем заказ…';
+    fetch('/api/my/lookup', {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        email: document.getElementById('lEmail').value,
+        phone: document.getElementById('lPhone').value
+      })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) {
+          haptic('error');
+          btn.disabled = false;
+          err.textContent = res.j.message || 'Не получилось. Попробуйте ещё раз.';
+          return;
+        }
+        haptic('success');
+        if (!res.j.tickets.length) { renderEmptyBound(); return; }
+        renderTickets(res.j.tickets, res.j.bound);
+      })
+      .catch(function () {
+        btn.disabled = false;
+        err.textContent = 'Нет связи с сервером. Попробуйте позже.';
+      });
+  }
+  function loadMine() {
+    mineBody.innerHTML = '<div class="mine-h">Мои билеты</div><div class="skel-row"></div>';
+    fetch('/api/my/tickets', { cache: 'no-store', headers: authHeaders({}) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (j.bound && j.tickets.length) renderTickets(j.tickets, true);
+        else if (j.bound) renderEmptyBound();
+        else renderForm('');
+      })
+      .catch(function () { renderForm('Не удалось загрузить. Введите данные заказа.'); });
+  }
+  Array.prototype.forEach.call(bnav.querySelectorAll('.bnav-btn'), function (b) {
+    b.addEventListener('click', function () { setView(b.dataset.v); });
+  });
+
+  load(false);
+})();
+</script>
+</body>
+</html>
