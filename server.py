@@ -21,6 +21,7 @@ import threading
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote, unquote
 
@@ -42,6 +43,7 @@ CACHE_TTL = 300          # секунд; за это время к qtickets не
 MAX_PAGES = 4            # сколько страниц по 50 тянуть за раз
 PER_PAGE = 50
 GRACE = timedelta(hours=2)   # событие считаем актуальным ещё 2 часа после начала
+LOCAL_TZ = ZoneInfo('Asia/Yekaterinburg')
 
 MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
           'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
@@ -98,18 +100,19 @@ def effective_price(price_obj, now):
 
 
 def human_date(dt):
-    """'29 ноября, сб · 18:30' с пометкой сегодня/завтра."""
+    """'29 ноября, сб · 18:30' по времени Екатеринбурга, с пометкой сегодня/завтра."""
     if not dt:
         return ''
-    now = datetime.now(dt.tzinfo)
-    delta = (dt.date() - now.date()).days
+    local = dt.astimezone(LOCAL_TZ)
+    now = datetime.now(LOCAL_TZ)
+    delta = (local.date() - now.date()).days
     if delta == 0:
         label = 'Сегодня'
     elif delta == 1:
         label = 'Завтра'
     else:
-        label = f'{dt.day} {MONTHS[dt.month - 1]}, {WEEKDAYS[dt.weekday()]}'
-    return f'{label} · {dt.strftime("%H:%M")}'
+        label = f'{local.day} {MONTHS[local.month - 1]}, {WEEKDAYS[local.weekday()]}'
+    return f'{label} · {local.strftime("%H:%M")}'
 
 
 def normalize(event, now):
@@ -565,6 +568,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(200, {
                 'ok': not API_KEY is None and bool(API_KEY),
                 'cached_items': len(_cache['payload'] or []),
+                'build': 'cs-login-1',
             })
 
         if url.path == '/':
